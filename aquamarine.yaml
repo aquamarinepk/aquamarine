@@ -1,0 +1,63 @@
+version: 0.1
+
+project:
+  name: myapp
+  module: github.com/you/myapp
+
+runtime:
+  http:
+    api:
+      host: 127.0.0.1
+      port: 8081
+    web:
+      host: 127.0.0.1
+      port: 8080
+  database:
+    engine: sqlite
+    # dsn: ${DATABASE_URL}   # optional
+
+# Ordering and dependencies (optional, global)
+ordering:
+  # Default alphabetical; define edges if you need explicit ordering:
+  requires:
+    # - [dashboard, auth]
+
+feats:
+  - name: auth
+    kind: domain             # soft semantics; “domain” = multiple models/business rules
+    models:
+      User:
+        fields:
+          id:    {type: uuid}
+          email: {type: string, validations: [required, email]}
+          pass:  {type: string, validations: [required, min: 8]}
+      Role:
+        fields:
+          name: {type: string, validations: [required, unique]}
+      Permission:
+        fields:
+          code: {type: string, validations: [required, unique]}
+    service:
+      methods: [Register, Login, AssignRole]
+    api:
+      routes:
+        - {method: POST, path: /login,    handler: Login}
+        - {method: POST, path: /register, handler: Register}
+
+  - name: profile
+    kind: atom               # semantics: repo == service (direct impl)
+    model:
+      name: Profile          # single-entity “atom” variant
+      fields:
+        id:   {type: uuid}
+        name: {type: string, validations: [required]}
+    api:
+      routes:
+        - {method: GET, path: /me, handler: GetMe}
+    # requires: [auth]
+
+  - name: web
+    kind: web                # server-side web layer; orchestrates other feats
+    pages:
+      - {route: "GET /", uses: [auth, profile]}
+      - {route: "GET /dashboard", uses: [auth]}
